@@ -1,18 +1,27 @@
 /**
  * Einfache Marker-Erkennung für das neue Repo.
- * Nutzt weiterhin js-aruco2, damit wir im Browser direkt etwas sehen.
- *
- * WICHTIG:
- * Das ist nur die Erkennungsstufe.
- * Die eigentliche Board-/Pose-Logik kommt danach sauber oben drauf.
+ * Nutzt js-aruco2 im Browser.
  */
 
 let detector = null;
+let posit = null;
+let currentCanvasWidth = null;
+let markerSize = 0.1;
 
-export function initDetector() {
+export function initDetector(canvasWidth, markerSizeMeters = 0.1) {
   detector = new AR.Detector({
     dictionaryName: "ARUCO"
   });
+
+  posit = new POS.Posit(markerSizeMeters, canvasWidth);
+  currentCanvasWidth = canvasWidth;
+  markerSize = markerSizeMeters;
+}
+
+export function ensureDetector(canvasWidth) {
+  if (!detector || !posit || currentCanvasWidth !== canvasWidth) {
+    initDetector(canvasWidth, markerSize);
+  }
 }
 
 export function detectMarkers(ctx, canvas) {
@@ -26,8 +35,28 @@ export function detectMarkers(ctx, canvas) {
 
 export function chooseReferenceMarker(markers) {
   if (!markers.length) return null;
-
   return [...markers].sort((a, b) => getMarkerArea(b) - getMarkerArea(a))[0];
+}
+
+export function estimateMarkerPose(marker, canvas) {
+  if (!posit || !marker) return null;
+
+  const positCorners = marker.corners.map(corner => ({
+    x: corner.x - canvas.width / 2,
+    y: canvas.height / 2 - corner.y
+  }));
+
+  const pose = posit.pose(positCorners);
+
+  if (!pose || !pose.bestTranslation || !pose.bestRotation) {
+    return null;
+  }
+
+  return {
+    id: marker.id,
+    translation: pose.bestTranslation,
+    rotation: pose.bestRotation
+  };
 }
 
 export function getMarkerArea(marker) {

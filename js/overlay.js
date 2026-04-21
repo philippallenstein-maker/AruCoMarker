@@ -1,12 +1,6 @@
 import { getMarkerCenter } from "./detector.js";
 
-/**
- * Overlay-Funktionen:
- * - Markerrahmen
- * - Marker-ID
- * - Referenzmarker hervorheben
- * - Debug-Info links oben
- */
+const AXIS_LENGTH_METERS = 0.06;
 
 export function drawMarkers(ctx, markers, referenceMarker) {
   for (const marker of markers) {
@@ -39,6 +33,60 @@ export function drawMarkers(ctx, markers, referenceMarker) {
       corners[0].y - 10
     );
   }
+}
+
+export function drawAxes(ctx, canvas, markerPose) {
+  if (!markerPose) return;
+
+  const origin = projectPoint(canvas, markerPose.rotation, markerPose.translation, {
+    x: 0,
+    y: 0,
+    z: 0
+  });
+
+  const xAxis = projectPoint(canvas, markerPose.rotation, markerPose.translation, {
+    x: AXIS_LENGTH_METERS,
+    y: 0,
+    z: 0
+  });
+
+  const yAxis = projectPoint(canvas, markerPose.rotation, markerPose.translation, {
+    x: 0,
+    y: AXIS_LENGTH_METERS,
+    z: 0
+  });
+
+  const zAxisRaw = projectPoint(canvas, markerPose.rotation, markerPose.translation, {
+    x: 0,
+    y: 0,
+    z: AXIS_LENGTH_METERS
+  });
+
+  const zAxis = {
+    x: origin.x + (origin.x - zAxisRaw.x),
+    y: origin.y + (origin.y - zAxisRaw.y)
+  };
+
+  ctx.beginPath();
+  ctx.moveTo(origin.x, origin.y);
+  ctx.lineTo(xAxis.x, xAxis.y);
+  ctx.strokeStyle = "red";
+  ctx.lineWidth = 4;
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(origin.x, origin.y);
+  ctx.lineTo(yAxis.x, yAxis.y);
+  ctx.strokeStyle = "lime";
+  ctx.lineWidth = 4;
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(origin.x, origin.y);
+  ctx.lineTo(zAxis.x, zAxis.y);
+  ctx.strokeStyle = "blue";
+  ctx.lineWidth = 4;
+  ctx.stroke();
 }
 
 export function drawDebugOverlay(ctx, boardSummary, referenceMarker, markerCount) {
@@ -83,4 +131,33 @@ export function drawDebugOverlay(ctx, boardSummary, referenceMarker, markerCount
   y += lineHeight;
 
   ctx.fillText(`ID2 Höhe: ${boardSummary.id2Height.toFixed(2)} m`, 20, y);
+}
+
+function projectPoint(canvas, rotation, translation, point3D) {
+  const X =
+    rotation[0][0] * point3D.x +
+    rotation[0][1] * point3D.y +
+    rotation[0][2] * point3D.z +
+    translation[0];
+
+  const Y =
+    rotation[1][0] * point3D.x +
+    rotation[1][1] * point3D.y +
+    rotation[1][2] * point3D.z +
+    translation[1];
+
+  const Z =
+    rotation[2][0] * point3D.x +
+    rotation[2][1] * point3D.y +
+    rotation[2][2] * point3D.z +
+    translation[2];
+
+  const focal = canvas.width;
+  const cx = canvas.width / 2;
+  const cy = canvas.height / 2;
+
+  return {
+    x: cx + (focal * X / Z),
+    y: cy - (focal * Y / Z)
+  };
 }

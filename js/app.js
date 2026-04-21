@@ -1,6 +1,13 @@
 import { getBoardSummary } from "./pose-model.js";
-import { initDetector, detectMarkers, chooseReferenceMarker } from "./detector.js";
-import { drawMarkers, drawDebugOverlay } from "./overlay.js";
+import {
+  initDetector,
+  ensureDetector,
+  detectMarkers,
+  chooseReferenceMarker,
+  estimateMarkerPose
+} from "./detector.js";
+import { drawMarkers, drawAxes, drawDebugOverlay } from "./overlay.js";
+import { BOARD } from "./board-config.js";
 
 const statusEl = document.getElementById("status");
 const startBtn = document.getElementById("startBtn");
@@ -23,12 +30,20 @@ function resizeCanvasToVideo() {
 function render() {
   if (video.readyState >= 2) {
     resizeCanvasToVideo();
+    ensureDetector(canvas.width);
+
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
     const markers = detectMarkers(ctx, canvas);
     const referenceMarker = chooseReferenceMarker(markers);
+    const referencePose = referenceMarker ? estimateMarkerPose(referenceMarker, canvas) : null;
 
     drawMarkers(ctx, markers, referenceMarker);
+
+    if (referencePose) {
+      drawAxes(ctx, canvas, referencePose);
+    }
+
     drawDebugOverlay(ctx, boardSummary, referenceMarker, markers.length);
 
     if (referenceMarker) {
@@ -58,7 +73,7 @@ async function startCamera() {
     await video.play();
 
     console.log("AR verfügbar:", typeof AR !== "undefined");
-    initDetector();
+    initDetector(canvas.width || 640, BOARD.markerSize);
 
     statusEl.textContent = "Status: Kamera läuft";
     render();
