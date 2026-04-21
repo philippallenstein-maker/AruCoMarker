@@ -57,6 +57,7 @@ async function startCamera() {
     video.srcObject = stream;
     await video.play();
 
+    console.log("AR verfügbar:", typeof AR !== "undefined");
     initDetector();
 
     statusEl.textContent = "Status: Kamera läuft";
