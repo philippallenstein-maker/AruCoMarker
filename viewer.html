@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Aruco Viewer</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <main class="page">
+    <section class="panel">
+      <h1>Viewer</h1>
+      <p id="viewerStatus">Status: bereit</p>
+      <div class="info-grid">
+        <p>Ref-ID: <span id="viewerRefId">-</span></p>
+        <p>X: <span id="viewerX">-</span></p>
+        <p>Y: <span id="viewerY">-</span></p>
+        <p>Z: <span id="viewerZ">-</span></p>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div id="viewerScene" class="viewer-scene">
+        Viewer folgt später
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="./js/viewer.js"></script>
+</body>
+</html>
