@@ -13,8 +13,10 @@ import {
   calculateNormalizedMarkerOffset,
   estimateLocalBoardPosition
 } from "./positioning.js";
+import { connectSocket, disconnectSocket, sendData } from "./websocket.js";
 
 const statusEl = document.getElementById("status");
+const wsStatusEl = document.getElementById("wsStatus");
 const startBtn = document.getElementById("startBtn");
 const stopBtn = document.getElementById("stopBtn");
 const video = document.getElementById("video");
@@ -52,6 +54,22 @@ function render() {
       distance = estimateDistanceFromMarker(referenceMarker, BOARD.markerSize, FOCAL_LENGTH_PX);
       offset = calculateNormalizedMarkerOffset(referenceMarker, canvas);
       localPosition = estimateLocalBoardPosition(referenceMarker, offset, distance);
+
+      sendData({
+        type: "tracking",
+        data: {
+          referenceId: referenceMarker.id,
+          distance,
+          normX: offset?.normX ?? null,
+          normY: offset?.normY ?? null,
+          centerX: offset?.centerX ?? null,
+          centerY: offset?.centerY ?? null,
+          localX: localPosition?.x ?? null,
+          localY: localPosition?.y ?? null,
+          localZ: localPosition?.z ?? null,
+          ts: Date.now()
+        }
+      });
     }
 
     drawMarkers(ctx, markers, referenceMarker);
@@ -95,7 +113,18 @@ async function startCamera() {
     video.srcObject = stream;
     await video.play();
 
-    console.log("AR verfügbar:", typeof AR !== "undefined");
+    connectSocket({
+      onOpen: () => {
+        wsStatusEl.textContent = "verbunden";
+      },
+      onClose: () => {
+        wsStatusEl.textContent = "nicht verbunden";
+      },
+      onError: () => {
+        wsStatusEl.textContent = "fehler";
+      }
+    });
+
     initDetector(canvas.width || 640, BOARD.markerSize);
 
     statusEl.textContent = "Status: Kamera läuft";
@@ -116,6 +145,9 @@ function stopCamera() {
     stream.getTracks().forEach(track => track.stop());
     stream = null;
   }
+
+  disconnectSocket();
+  wsStatusEl.textContent = "nicht verbunden";
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   statusEl.textContent = "Status: Kamera gestoppt";

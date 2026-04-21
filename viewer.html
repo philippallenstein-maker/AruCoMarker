@@ -11,18 +11,23 @@
     <section class="panel">
       <h1>Viewer</h1>
       <p id="viewerStatus">Status: bereit</p>
+      <p>WebSocket: <span id="viewerWsStatus">nicht verbunden</span></p>
+
       <div class="info-grid">
         <p>Ref-ID: <span id="viewerRefId">-</span></p>
         <p>X: <span id="viewerX">-</span></p>
         <p>Y: <span id="viewerY">-</span></p>
         <p>Z: <span id="viewerZ">-</span></p>
       </div>
+
+      <div class="button-row">
+        <button id="viewerConnectBtn">Live verbinden</button>
+        <button id="viewerDisconnectBtn">Trennen</button>
+      </div>
     </section>
 
     <section class="panel">
-      <div id="viewerScene" class="viewer-scene">
-        Viewer folgt später
-      </div>
+      <canvas id="viewerCanvas"></canvas>
     </section>
   </main>
 
