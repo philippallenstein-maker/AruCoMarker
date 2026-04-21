@@ -8,6 +8,11 @@ import {
 } from "./detector.js";
 import { drawMarkers, drawAxes, drawDebugOverlay } from "./overlay.js";
 import { BOARD } from "./board-config.js";
+import {
+  estimateDistanceFromMarker,
+  calculateNormalizedMarkerOffset,
+  estimateLocalBoardPosition
+} from "./positioning.js";
 
 const statusEl = document.getElementById("status");
 const startBtn = document.getElementById("startBtn");
@@ -20,6 +25,7 @@ let stream = null;
 let rafId = null;
 
 const boardSummary = getBoardSummary();
+const FOCAL_LENGTH_PX = 900;
 
 function resizeCanvasToVideo() {
   if (!video.videoWidth || !video.videoHeight) return;
@@ -38,13 +44,30 @@ function render() {
     const referenceMarker = chooseReferenceMarker(markers);
     const referencePose = referenceMarker ? estimateMarkerPose(referenceMarker, canvas) : null;
 
+    let distance = null;
+    let offset = null;
+    let localPosition = null;
+
+    if (referenceMarker) {
+      distance = estimateDistanceFromMarker(referenceMarker, BOARD.markerSize, FOCAL_LENGTH_PX);
+      offset = calculateNormalizedMarkerOffset(referenceMarker, canvas);
+      localPosition = estimateLocalBoardPosition(referenceMarker, offset, distance);
+    }
+
     drawMarkers(ctx, markers, referenceMarker);
 
     if (referencePose) {
       drawAxes(ctx, canvas, referencePose);
     }
 
-    drawDebugOverlay(ctx, boardSummary, referenceMarker, markers.length);
+    drawDebugOverlay(ctx, boardSummary, referenceMarker, markers.length, {
+      distance,
+      normX: offset?.normX ?? null,
+      normY: offset?.normY ?? null,
+      localX: localPosition?.x ?? null,
+      localY: localPosition?.y ?? null,
+      localZ: localPosition?.z ?? null
+    });
 
     if (referenceMarker) {
       statusEl.textContent = `Status: Marker erkannt – Referenz ${referenceMarker.id}`;

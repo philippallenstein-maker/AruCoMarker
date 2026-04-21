@@ -89,9 +89,9 @@ export function drawAxes(ctx, canvas, markerPose) {
   ctx.stroke();
 }
 
-export function drawDebugOverlay(ctx, boardSummary, referenceMarker, markerCount) {
-  ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
-  ctx.fillRect(12, 12, 420, 280);
+export function drawDebugOverlay(ctx, boardSummary, referenceMarker, markerCount, debugData = {}) {
+  ctx.fillStyle = "rgba(0, 0, 0, 0.68)";
+  ctx.fillRect(12, 12, 430, 390);
 
   ctx.fillStyle = "yellow";
   ctx.font = "16px Arial";
@@ -120,6 +120,48 @@ export function drawDebugOverlay(ctx, boardSummary, referenceMarker, markerCount
     ctx.fillText("Center Y: -", 20, y);
     y += lineHeight;
   }
+
+  ctx.fillText(
+    `Distanz: ${debugData.distance !== null && debugData.distance !== undefined ? debugData.distance.toFixed(2) : "-"} m`,
+    20,
+    y
+  );
+  y += lineHeight;
+
+  ctx.fillText(
+    `Norm X: ${debugData.normX !== null && debugData.normX !== undefined ? debugData.normX.toFixed(2) : "-"}`,
+    20,
+    y
+  );
+  y += lineHeight;
+
+  ctx.fillText(
+    `Norm Y: ${debugData.normY !== null && debugData.normY !== undefined ? debugData.normY.toFixed(2) : "-"}`,
+    20,
+    y
+  );
+  y += lineHeight;
+
+  ctx.fillText(
+    `Local X: ${debugData.localX !== null && debugData.localX !== undefined ? debugData.localX.toFixed(2) : "-"}`,
+    20,
+    y
+  );
+  y += lineHeight;
+
+  ctx.fillText(
+    `Local Y: ${debugData.localY !== null && debugData.localY !== undefined ? debugData.localY.toFixed(2) : "-"}`,
+    20,
+    y
+  );
+  y += lineHeight;
+
+  ctx.fillText(
+    `Local Z: ${debugData.localZ !== null && debugData.localZ !== undefined ? debugData.localZ.toFixed(2) : "-"}`,
+    20,
+    y
+  );
+  y += lineHeight;
 
   ctx.fillText(`Markergröße: ${boardSummary.markerSize.toFixed(2)} m`, 20, y);
   y += lineHeight;
