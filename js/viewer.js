@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { connectSocket, disconnectSocket } from "./websocket.js";
+import { WS_URL } from "./config.js";
 import { BOARD, MARKER_CENTERS } from "./board-config.js";
 
 const statusEl = document.getElementById("viewerStatus");
@@ -13,59 +13,83 @@ const connectBtn = document.getElementById("viewerConnectBtn");
 const disconnectBtn = document.getElementById("viewerDisconnectBtn");
 const sceneContainer = document.getElementById("viewerScene");
 
-let currentData = null;
-
+let socket = null;
 let scene;
 let camera;
 let renderer;
 let controls;
 let phoneGroup;
 
-/**
- * Initialisierung
- */
 initScene();
 drawStaticBoard();
 animate();
 
-connectBtn.addEventListener("click", () => {
-  connectSocket({
-    onOpen: () => {
-      wsStatusEl.textContent = "verbunden";
-      statusEl.textContent = "Status: Viewer verbunden";
-    },
-    onClose: () => {
-      wsStatusEl.textContent = "nicht verbunden";
-      statusEl.textContent = "Status: Viewer getrennt";
-    },
-    onError: () => {
-      wsStatusEl.textContent = "fehler";
-      statusEl.textContent = "Status: Viewer Fehler";
-    },
-    onMessage: (event) => {
-      try {
-        const msg = JSON.parse(event.data);
-        if (msg.type === "tracking" && msg.data) {
-          applyData(msg.data);
-        }
-      } catch (error) {
-        console.error("Viewer Parse-Fehler:", error);
-      }
-    }
-  });
-});
-
-disconnectBtn.addEventListener("click", () => {
-  disconnectSocket();
-  wsStatusEl.textContent = "nicht verbunden";
-  statusEl.textContent = "Status: Viewer getrennt";
-});
-
+connectBtn.addEventListener("click", connectViewerSocket);
+disconnectBtn.addEventListener("click", disconnectViewerSocket);
 window.addEventListener("resize", handleResize);
 
-/**
- * Szene aufbauen
- */
+function connectViewerSocket() {
+  if (!WS_URL) {
+    statusEl.textContent = "Status: Keine WS_URL gesetzt";
+    wsStatusEl.textContent = "fehler";
+    return;
+  }
+
+  if (socket && socket.readyState === WebSocket.OPEN) {
+    statusEl.textContent = "Status: Viewer schon verbunden";
+    wsStatusEl.textContent = "verbunden";
+    return;
+  }
+
+  console.log("Viewer verbindet zu:", WS_URL);
+  statusEl.textContent = "Status: Verbinde...";
+  wsStatusEl.textContent = "verbinde...";
+
+  socket = new WebSocket(WS_URL);
+
+  socket.onopen = () => {
+    console.log("Viewer WebSocket verbunden");
+    statusEl.textContent = "Status: Viewer verbunden";
+    wsStatusEl.textContent = "verbunden";
+  };
+
+  socket.onerror = (error) => {
+    console.error("Viewer WebSocket Fehler:", error);
+    statusEl.textContent = "Status: Viewer Fehler";
+    wsStatusEl.textContent = "fehler";
+  };
+
+  socket.onclose = () => {
+    console.log("Viewer WebSocket getrennt");
+    statusEl.textContent = "Status: Viewer getrennt";
+    wsStatusEl.textContent = "nicht verbunden";
+    socket = null;
+  };
+
+  socket.onmessage = (event) => {
+    try {
+      const msg = JSON.parse(event.data);
+      console.log("Viewer Nachricht:", msg);
+
+      if (msg.type !== "tracking" || !msg.data) return;
+
+      applyData(msg.data);
+    } catch (error) {
+      console.error("Viewer Parse-Fehler:", error);
+    }
+  };
+}
+
+function disconnectViewerSocket() {
+  if (socket) {
+    socket.close();
+    socket = null;
+  }
+
+  statusEl.textContent = "Status: Viewer getrennt";
+  wsStatusEl.textContent = "nicht verbunden";
+}
+
 function initScene() {
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0xeef2f5);
@@ -104,9 +128,6 @@ function initScene() {
   addPhoneObject();
 }
 
-/**
- * Raum
- */
 function addRoom() {
   const roomWidth = 3.2;
   const roomHeight = 2.8;
@@ -150,9 +171,6 @@ function addWall() {
   scene.add(wall);
 }
 
-/**
- * Marker-Wand zeichnen
- */
 function drawStaticBoard() {
   Object.entries(MARKER_CENTERS).forEach(([id, pos]) => {
     const marker = createMarkerMesh(`ID ${id}`);
@@ -196,18 +214,12 @@ function createMarkerMesh(label) {
   return group;
 }
 
-/**
- * Ursprung / Achsen bei ID2
- */
 function addOriginAxes() {
   const axesHelper = new THREE.AxesHelper(0.5);
   axesHelper.position.set(0, BOARD.id2Height, 0.08);
   scene.add(axesHelper);
 }
 
-/**
- * Kameraobjekt
- */
 function addPhoneObject() {
   phoneGroup = new THREE.Group();
 
@@ -229,16 +241,10 @@ function addPhoneObject() {
 
   scene.add(phoneGroup);
 
-  // Startpose
   phoneGroup.position.set(0.4, BOARD.id2Height + 0.3, 1.2);
 }
 
-/**
- * Live-Daten anwenden
- */
 function applyData(data) {
-  currentData = data;
-
   refIdEl.textContent = data.referenceId ?? "-";
   xEl.textContent = data.localX !== null ? Number(data.localX).toFixed(2) : "-";
   yEl.textContent = data.localY !== null ? Number(data.localY).toFixed(2) : "-";
@@ -259,9 +265,6 @@ function applyData(data) {
   }
 }
 
-/**
- * Renderloop
- */
 function animate() {
   requestAnimationFrame(animate);
   controls.update();
