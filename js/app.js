@@ -13,7 +13,7 @@ import {
   calculateNormalizedMarkerOffset,
   estimateLocalBoardPosition
 } from "./positioning.js";
-import { connectSocket, disconnectSocket, sendData } from "./websocket.js";
+import { connectSocket, disconnectSocket, sendData, setSocketStateCallback } from "./websocket.js";
 
 const statusEl = document.getElementById("status");
 const wsStatusEl = document.getElementById("wsStatus");
@@ -27,6 +27,13 @@ let stream = null;
 let rafId = null;
 
 const boardSummary = getBoardSummary();
+
+setSocketStateCallback((text) => {
+  if (wsStatusEl) {
+    wsStatusEl.textContent = text;
+  }
+});
+
 const FOCAL_LENGTH_PX = 900;
 
 function resizeCanvasToVideo() {
@@ -112,6 +119,8 @@ async function startCamera() {
 
     video.srcObject = stream;
     await video.play();
+
+    connectSocket();
 
     connectSocket({
       onOpen: () => {
