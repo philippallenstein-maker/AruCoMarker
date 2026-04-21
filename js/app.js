@@ -22,7 +22,6 @@ function render() {
   if (video.readyState >= 2) {
     resizeCanvasToVideo();
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
     drawDebugOverlay();
   }
 
@@ -30,7 +29,6 @@ function render() {
 }
 
 function drawDebugOverlay() {
-  // dunkler Hintergrundkasten für bessere Lesbarkeit
   ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
   ctx.fillRect(12, 12, 360, 220);
 
