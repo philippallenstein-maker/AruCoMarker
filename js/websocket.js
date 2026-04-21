@@ -2,49 +2,73 @@ import { WS_URL, SEND_INTERVAL_MS } from "./config.js";
 
 let socket = null;
 let lastSendTs = 0;
-let onStateChange = null;
+let socketStateCallback = null;
 
 export function setSocketStateCallback(callback) {
-  onStateChange = callback;
+  socketStateCallback = callback;
 }
 
-function notify(stateText) {
-  if (typeof onStateChange === "function") {
-    onStateChange(stateText);
+function notifyState(text) {
+  if (typeof socketStateCallback === "function") {
+    socketStateCallback(text);
   }
 }
 
-export function connectSocket() {
+/**
+ * Verbindung aufbauen.
+ * Optional mit Callbacks:
+ * - onOpen
+ * - onClose
+ * - onError
+ * - onMessage
+ */
+export function connectSocket(options = {}) {
+  const {
+    onOpen = null,
+    onClose = null,
+    onError = null,
+    onMessage = null
+  } = options;
+
   if (!WS_URL) {
     console.warn("WS_URL fehlt");
-    notify("keine url");
-    return;
+    notifyState("keine url");
+    return null;
   }
 
   if (socket && socket.readyState === WebSocket.OPEN) {
-    notify("verbunden");
-    return;
+    notifyState("verbunden");
+    return socket;
   }
 
-  console.log("Phone verbindet zu:", WS_URL);
-  notify("verbinde...");
+  console.log("Verbinde WebSocket zu:", WS_URL);
+  notifyState("verbinde...");
 
   socket = new WebSocket(WS_URL);
 
   socket.onopen = () => {
-    console.log("Phone WebSocket verbunden");
-    notify("verbunden");
-  };
-
-  socket.onerror = (error) => {
-    console.error("Phone WebSocket Fehler:", error);
-    notify("fehler");
+    console.log("WebSocket verbunden");
+    notifyState("verbunden");
+    if (typeof onOpen === "function") onOpen();
   };
 
   socket.onclose = () => {
-    console.log("Phone WebSocket getrennt");
-    notify("nicht verbunden");
+    console.log("WebSocket getrennt");
+    notifyState("nicht verbunden");
+    if (typeof onClose === "function") onClose();
   };
+
+  socket.onerror = (error) => {
+    console.error("WebSocket Fehler:", error);
+    notifyState("fehler");
+    if (typeof onError === "function") onError(error);
+  };
+
+  socket.onmessage = (event) => {
+    if (typeof onMessage === "function") onMessage(event);
+  };
+
+  return socket;
 }
 
 export function disconnectSocket() {
@@ -52,7 +76,7 @@ export function disconnectSocket() {
     socket.close();
     socket = null;
   }
-  notify("nicht verbunden");
+  notifyState("nicht verbunden");
 }
 
 export function sendData(payload) {
@@ -63,4 +87,8 @@ export function sendData(payload) {
   lastSendTs = now;
 
   socket.send(JSON.stringify(payload));
+}
+
+export function getSocket() {
+  return socket;
 }
