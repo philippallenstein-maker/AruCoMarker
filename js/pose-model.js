@@ -47,8 +47,8 @@ export function getAllBoardPointsFlat() {
 export function getBoardSummary() {
   return {
     markerSize: BOARD.markerSize,
-    spacingX: BOARD.spacingX,
-    spacingY: BOARD.spacingY,
+    spacingX: 0,
+    spacingY: 0,
     id2Height: BOARD.id2Height,
     markerCenters: MARKER_CENTERS
   };

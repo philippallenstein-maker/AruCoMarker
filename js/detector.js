@@ -1,15 +1,14 @@
 /**
  * Einfache Marker-Erkennung für das neue Repo.
- * Nutzt js-aruco2 im Browser.
+ * Ein-Marker-Modus: nur ID2.
  */
+
+import { VALID_MARKER_IDS } from "./board-config.js";
 
 let detector = null;
 let posit = null;
 let currentCanvasWidth = null;
 let markerSize = 0.1;
-
-// Referenzmarker-Stabilisierung
-let lastReferenceId = null;
 
 export function initDetector(canvasWidth, markerSizeMeters = 0.1) {
   detector = new AR.Detector({
@@ -33,41 +32,13 @@ export function detectMarkers(ctx, canvas) {
   const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
   const detectedMarkers = detector.detect(imageData);
 
-  return dedupeMarkersByLargestArea(detectedMarkers);
+  const filtered = dedupeMarkersByLargestArea(detectedMarkers);
+  return filtered.filter(marker => VALID_MARKER_IDS.includes(marker.id));
 }
 
-/**
- * Referenzmarker stabil wählen:
- * - bisherigen Marker behalten, wenn er noch sichtbar ist
- * - nur wechseln, wenn ein anderer deutlich größer ist
- */
 export function chooseReferenceMarker(markers) {
-  if (!markers.length) {
-    lastReferenceId = null;
-    return null;
-  }
-
-  const biggest = [...markers].sort((a, b) => getMarkerArea(b) - getMarkerArea(a))[0];
-
-  if (lastReferenceId !== null) {
-    const previous = markers.find(m => m.id === lastReferenceId);
-
-    if (previous) {
-      const previousArea = getMarkerArea(previous);
-      const biggestArea = getMarkerArea(biggest);
-
-      // erst wechseln, wenn neuer Marker deutlich besser ist
-      if (biggest.id !== previous.id && biggestArea > previousArea * 1.35) {
-        lastReferenceId = biggest.id;
-        return biggest;
-      }
-
-      return previous;
-    }
-  }
-
-  lastReferenceId = biggest.id;
-  return biggest;
+  if (!markers.length) return null;
+  return markers[0];
 }
 
 export function estimateMarkerPose(marker, canvas) {

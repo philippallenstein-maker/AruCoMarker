@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { WS_URL } from "./config.js";
-import { BOARD, MARKER_CENTERS } from "./board-config.js";
+import { BOARD } from "./board-config.js";
 
 const statusEl = document.getElementById("viewerStatus");
 const wsStatusEl = document.getElementById("viewerWsStatus");
@@ -19,10 +19,13 @@ let camera;
 let renderer;
 let controls;
 let phoneGroup;
-let phoneTarget = { x: 0.4, y: BOARD.id2Height + 0.3, z: 1.2 };
+let phoneTarget = { x: 1.6, y: BOARD.id2Height, z: 1.2 };
 
-// Marker optisch mittiger an die Wand
-const WALL_OFFSET_X = 0.8;
+// Marker wirklich mittig an die Wand
+const WALL_CENTER_X = 2.1;
+const ROOM_WIDTH = 4.2;
+const ROOM_HEIGHT = 2.8;
+const ROOM_DEPTH = 4.5;
 
 initScene();
 drawStaticBoard();
@@ -45,26 +48,22 @@ function connectViewerSocket() {
     return;
   }
 
-  console.log("Viewer verbindet zu:", WS_URL);
   statusEl.textContent = "Status: Verbinde...";
   wsStatusEl.textContent = "verbinde...";
 
   socket = new WebSocket(WS_URL);
 
   socket.onopen = () => {
-    console.log("Viewer WebSocket verbunden");
     statusEl.textContent = "Status: Viewer verbunden";
     wsStatusEl.textContent = "verbunden";
   };
 
-  socket.onerror = (error) => {
-    console.error("Viewer WebSocket Fehler:", error);
+  socket.onerror = () => {
     statusEl.textContent = "Status: Viewer Fehler";
     wsStatusEl.textContent = "fehler";
   };
 
   socket.onclose = () => {
-    console.log("Viewer WebSocket getrennt");
     statusEl.textContent = "Status: Viewer getrennt";
     wsStatusEl.textContent = "nicht verbunden";
     socket = null;
@@ -101,7 +100,7 @@ function initScene() {
     0.1,
     100
   );
-  camera.position.set(4.2, 2.6, 5.8);
+  camera.position.set(4.8, 2.8, 6.0);
 
   renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(sceneContainer.clientWidth, sceneContainer.clientHeight);
@@ -109,7 +108,7 @@ function initScene() {
   sceneContainer.appendChild(renderer.domElement);
 
   controls = new OrbitControls(camera, renderer.domElement);
-  controls.target.set(1.4, 1.25, 1.2);
+  controls.target.set(WALL_CENTER_X, BOARD.id2Height, 1.2);
   controls.enableDamping = true;
   controls.dampingFactor = 0.08;
   controls.maxPolarAngle = Math.PI / 2.02;
@@ -130,23 +129,19 @@ function initScene() {
 }
 
 function addRoom() {
-  const roomWidth = 4.2;
-  const roomHeight = 2.8;
-  const roomDepth = 4.5;
-
-  const roomGeometry = new THREE.BoxGeometry(roomWidth, roomHeight, roomDepth);
+  const roomGeometry = new THREE.BoxGeometry(ROOM_WIDTH, ROOM_HEIGHT, ROOM_DEPTH);
   const roomEdges = new THREE.EdgesGeometry(roomGeometry);
   const roomLine = new THREE.LineSegments(
     roomEdges,
     new THREE.LineBasicMaterial({ color: 0x555555 })
   );
 
-  roomLine.position.set(roomWidth / 2, roomHeight / 2, roomDepth / 2);
+  roomLine.position.set(ROOM_WIDTH / 2, ROOM_HEIGHT / 2, ROOM_DEPTH / 2);
   scene.add(roomLine);
 }
 
 function addFloor() {
-  const floorGeometry = new THREE.PlaneGeometry(4.2, 4.5);
+  const floorGeometry = new THREE.PlaneGeometry(ROOM_WIDTH, ROOM_DEPTH);
   const floorMaterial = new THREE.MeshStandardMaterial({
     color: 0x7a5b20,
     side: THREE.DoubleSide
@@ -154,30 +149,28 @@ function addFloor() {
 
   const floor = new THREE.Mesh(floorGeometry, floorMaterial);
   floor.rotation.x = -Math.PI / 2;
-  floor.position.set(2.1, 0, 2.25);
+  floor.position.set(ROOM_WIDTH / 2, 0, ROOM_DEPTH / 2);
 
   scene.add(floor);
 }
 
 function addWall() {
-  const wallGeometry = new THREE.PlaneGeometry(4.2, 2.8);
+  const wallGeometry = new THREE.PlaneGeometry(ROOM_WIDTH, ROOM_HEIGHT);
   const wallMaterial = new THREE.MeshStandardMaterial({
     color: 0xd0d0d0,
     side: THREE.DoubleSide
   });
 
   const wall = new THREE.Mesh(wallGeometry, wallMaterial);
-  wall.position.set(2.1, 1.4, 0);
+  wall.position.set(ROOM_WIDTH / 2, ROOM_HEIGHT / 2, 0);
 
   scene.add(wall);
 }
 
 function drawStaticBoard() {
-  Object.entries(MARKER_CENTERS).forEach(([id, pos]) => {
-    const marker = createMarkerMesh(`ID ${id}`);
-    marker.position.set(WALL_OFFSET_X + pos.x, BOARD.id2Height + pos.y, 0.01);
-    scene.add(marker);
-  });
+  const marker = createMarkerMesh("ID 2");
+  marker.position.set(WALL_CENTER_X, BOARD.id2Height, 0.01);
+  scene.add(marker);
 }
 
 function createMarkerMesh(label) {
@@ -217,7 +210,7 @@ function createMarkerMesh(label) {
 
 function addOriginAxes() {
   const axesHelper = new THREE.AxesHelper(0.5);
-  axesHelper.position.set(WALL_OFFSET_X, BOARD.id2Height, 0.08);
+  axesHelper.position.set(WALL_CENTER_X, BOARD.id2Height, 0.08);
   scene.add(axesHelper);
 }
 
@@ -241,7 +234,7 @@ function addPhoneObject() {
   phoneGroup.add(arrow);
 
   scene.add(phoneGroup);
-  phoneGroup.position.set(WALL_OFFSET_X + 0.4, BOARD.id2Height + 0.3, 1.2);
+  phoneGroup.position.set(WALL_CENTER_X, BOARD.id2Height, 1.2);
 }
 
 function applyData(data) {
@@ -250,7 +243,7 @@ function applyData(data) {
   yEl.textContent = data.localY !== null ? Number(data.localY).toFixed(2) : "-";
   zEl.textContent = data.localZ !== null ? Number(data.localZ).toFixed(2) : "-";
 
-  statusEl.textContent = `Status: Live Tracking – Ref ${data.referenceId ?? "-"} – Marker ${data.markerCount ?? "-"}`;
+  statusEl.textContent = `Status: Live Tracking – ID ${data.referenceId ?? "-"} – Marker ${data.markerCount ?? "-"}`;
 
   if (
     data.localX !== null &&
@@ -258,7 +251,7 @@ function applyData(data) {
     data.localZ !== null
   ) {
     phoneTarget = {
-      x: WALL_OFFSET_X + Number(data.localX),
+      x: WALL_CENTER_X + Number(data.localX),
       y: BOARD.id2Height + Number(data.localY),
       z: Number(data.localZ)
     };
@@ -268,7 +261,6 @@ function applyData(data) {
 function animate() {
   requestAnimationFrame(animate);
 
-  // sanfte Bewegung statt Teleport
   phoneGroup.position.x += (phoneTarget.x - phoneGroup.position.x) * 0.15;
   phoneGroup.position.y += (phoneTarget.y - phoneGroup.position.y) * 0.15;
   phoneGroup.position.z += (phoneTarget.z - phoneGroup.position.z) * 0.15;

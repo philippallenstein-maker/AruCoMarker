@@ -1,5 +1,4 @@
 import { getMarkerCenter } from "./detector.js";
-import { MARKER_CENTERS } from "./board-config.js";
 
 /**
  * Distanz aus Markergröße in Pixeln.
@@ -14,7 +13,8 @@ export function estimateDistanceFromMarker(marker, markerSizeMeters, focalLength
 }
 
 /**
- * Normierte Bildlage des Referenzmarkers.
+ * Normierte Markerabweichung relativ zur Bildmitte.
+ * -1 ... 0 ... +1
  */
 export function calculateNormalizedMarkerOffset(marker, canvas) {
   if (!marker || !canvas) return null;
@@ -33,71 +33,25 @@ export function calculateNormalizedMarkerOffset(marker, canvas) {
 }
 
 /**
- * Einfache lokale Position aus EINEM Referenzmarker.
+ * Ein-Marker-Positionsschätzung relativ zu ID2 in der Wandmitte.
+ *
+ * Markerzentrum = (0,0,0)
+ * X = links/rechts
+ * Y = oben/unten
+ * Z = Abstand zur Wand
+ *
+ * gainX / gainY sind Kalibrierfaktoren für die seitliche Abschätzung.
  */
-export function estimateLocalBoardPosition(referenceMarker, normOffset, distance) {
-  if (!referenceMarker || !normOffset || distance === null) return null;
+export function estimateLocalBoardPosition(normOffset, distance) {
+  if (!normOffset || distance === null) return null;
 
-  const anchor = MARKER_CENTERS[referenceMarker.id];
-  if (!anchor) return null;
-
-  const gainX = 0.35;
-  const gainY = 0.25;
+  const gainX = 0.45;
+  const gainY = 0.35;
 
   return {
-    x: anchor.x + normOffset.normX * gainX,
-    y: anchor.y + normOffset.normY * gainY,
+    x: normOffset.normX * gainX,
+    y: normOffset.normY * gainY,
     z: distance
-  };
-}
-
-/**
- * Bessere Mehrmarker-Schätzung:
- * - Für jeden sichtbaren Marker eigene lokale Schätzung
- * - danach Mittelwert bilden
- */
-export function estimateMultiMarkerBoardPosition(markers, canvas, markerSizeMeters, focalLengthPx) {
-  if (!markers || !markers.length) return null;
-
-  const gainX = 0.35;
-  const gainY = 0.25;
-
-  const estimates = [];
-
-  for (const marker of markers) {
-    const anchor = MARKER_CENTERS[marker.id];
-    if (!anchor) continue;
-
-    const center = getMarkerCenter(marker);
-    const normX = (center.x - canvas.width / 2) / (canvas.width / 2);
-    const normY = (center.y - canvas.height / 2) / (canvas.height / 2);
-    const distance = estimateDistanceFromMarker(marker, markerSizeMeters, focalLengthPx);
-
-    if (distance === null) continue;
-
-    estimates.push({
-      x: anchor.x + normX * gainX,
-      y: anchor.y + normY * gainY,
-      z: distance
-    });
-  }
-
-  if (!estimates.length) return null;
-
-  const sum = estimates.reduce(
-    (acc, item) => {
-      acc.x += item.x;
-      acc.y += item.y;
-      acc.z += item.z;
-      return acc;
-    },
-    { x: 0, y: 0, z: 0 }
-  );
-
-  return {
-    x: sum.x / estimates.length,
-    y: sum.y / estimates.length,
-    z: sum.z / estimates.length
   };
 }
 

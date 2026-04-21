@@ -11,8 +11,7 @@ import { BOARD } from "./board-config.js";
 import {
   estimateDistanceFromMarker,
   calculateNormalizedMarkerOffset,
-  estimateLocalBoardPosition,
-  estimateMultiMarkerBoardPosition
+  estimateLocalBoardPosition
 } from "./positioning.js";
 import { connectSocket, disconnectSocket, sendData, setSocketStateCallback } from "./websocket.js";
 
@@ -26,11 +25,9 @@ const ctx = canvas.getContext("2d");
 
 let stream = null;
 let rafId = null;
-
-// Smoothing für die lokale Position
 let smoothedLocalPosition = null;
-const POSITION_SMOOTHING = 0.75;
 
+const POSITION_SMOOTHING = 0.72;
 const boardSummary = getBoardSummary();
 const FOCAL_LENGTH_PX = 900;
 
@@ -79,46 +76,34 @@ function render() {
 
     let distance = null;
     let offset = null;
-    let localPositionSingle = null;
-    let localPositionMulti = null;
     let localPosition = null;
 
     if (referenceMarker) {
       distance = estimateDistanceFromMarker(referenceMarker, BOARD.markerSize, FOCAL_LENGTH_PX);
       offset = calculateNormalizedMarkerOffset(referenceMarker, canvas);
-      localPositionSingle = estimateLocalBoardPosition(referenceMarker, offset, distance);
-    }
+      localPosition = estimateLocalBoardPosition(offset, distance);
+      localPosition = smoothPosition(localPosition);
 
-    if (markers.length >= 2) {
-      localPositionMulti = estimateMultiMarkerBoardPosition(
-        markers,
-        canvas,
-        BOARD.markerSize,
-        FOCAL_LENGTH_PX
-      );
-    }
-
-    // Mehrmarker bevorzugen, sonst Einzelmarker
-    localPosition = localPositionMulti || localPositionSingle;
-    localPosition = smoothPosition(localPosition);
-
-    if (referenceMarker && localPosition) {
-      sendData({
-        type: "tracking",
-        data: {
-          referenceId: referenceMarker.id,
-          distance,
-          normX: offset?.normX ?? null,
-          normY: offset?.normY ?? null,
-          centerX: offset?.centerX ?? null,
-          centerY: offset?.centerY ?? null,
-          localX: localPosition?.x ?? null,
-          localY: localPosition?.y ?? null,
-          localZ: localPosition?.z ?? null,
-          markerCount: markers.length,
-          ts: Date.now()
-        }
-      });
+      if (localPosition) {
+        sendData({
+          type: "tracking",
+          data: {
+            referenceId: referenceMarker.id,
+            distance,
+            normX: offset?.normX ?? null,
+            normY: offset?.normY ?? null,
+            centerX: offset?.centerX ?? null,
+            centerY: offset?.centerY ?? null,
+            localX: localPosition?.x ?? null,
+            localY: localPosition?.y ?? null,
+            localZ: localPosition?.z ?? null,
+            markerCount: markers.length,
+            ts: Date.now()
+          }
+        });
+      }
+    } else {
+      smoothedLocalPosition = null;
     }
 
     drawMarkers(ctx, markers, referenceMarker);
@@ -137,7 +122,7 @@ function render() {
     });
 
     if (referenceMarker) {
-      statusEl.textContent = `Status: Marker erkannt – Referenz ${referenceMarker.id} – Marker ${markers.length}`;
+      statusEl.textContent = `Status: Marker erkannt – ID ${referenceMarker.id}`;
     } else {
       statusEl.textContent = "Status: Kamera läuft – kein Marker erkannt";
     }
@@ -163,7 +148,6 @@ async function startCamera() {
     await video.play();
 
     connectSocket();
-
     initDetector(canvas.width || 640, BOARD.markerSize);
 
     statusEl.textContent = "Status: Kamera läuft";
