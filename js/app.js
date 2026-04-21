@@ -30,19 +30,44 @@ function render() {
 }
 
 function drawDebugOverlay() {
-  ctx.fillStyle = "yellow";
-  ctx.font = "20px Arial";
-  ctx.fillText("OpenCV / Board-Projekt – Basis läuft", 20, 30);
-  ctx.fillText(`Markergröße: ${boardSummary.markerSize.toFixed(2)} m`, 20, 60);
-  ctx.fillText(`Abstand X: ${boardSummary.spacingX.toFixed(2)} m`, 20, 90);
-  ctx.fillText(`Abstand Y: ${boardSummary.spacingY.toFixed(2)} m`, 20, 120);
-  ctx.fillText(`ID2 Höhe: ${boardSummary.id2Height.toFixed(2)} m`, 20, 150);
+  // dunkler Hintergrundkasten für bessere Lesbarkeit
+  ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
+  ctx.fillRect(12, 12, 360, 220);
 
-  ctx.fillText("Markerzentren lokal:", 20, 190);
-  ctx.fillText("ID2 = (0.0, 0.0, 0.0)", 20, 220);
-  ctx.fillText("ID3 = (0.8, 0.0, 0.0)", 20, 250);
-  ctx.fillText("ID0 = (0.0, 0.6, 0.0)", 20, 280);
-  ctx.fillText("ID1 = (0.8, 0.6, 0.0)", 20, 310);
+  ctx.fillStyle = "yellow";
+  ctx.font = "16px Arial";
+
+  let y = 35;
+  const lineHeight = 24;
+
+  ctx.fillText("OpenCV / Board-Projekt – Basis läuft", 20, y);
+  y += lineHeight;
+
+  ctx.fillText(`Markergröße: ${boardSummary.markerSize.toFixed(2)} m`, 20, y);
+  y += lineHeight;
+
+  ctx.fillText(`Abstand X: ${boardSummary.spacingX.toFixed(2)} m`, 20, y);
+  y += lineHeight;
+
+  ctx.fillText(`Abstand Y: ${boardSummary.spacingY.toFixed(2)} m`, 20, y);
+  y += lineHeight;
+
+  ctx.fillText(`ID2 Höhe: ${boardSummary.id2Height.toFixed(2)} m`, 20, y);
+  y += lineHeight + 4;
+
+  ctx.fillText("Markerzentren lokal:", 20, y);
+  y += lineHeight;
+
+  ctx.fillText("ID2 = (0.0, 0.0, 0.0)", 20, y);
+  y += lineHeight;
+
+  ctx.fillText("ID3 = (0.8, 0.0, 0.0)", 20, y);
+  y += lineHeight;
+
+  ctx.fillText("ID0 = (0.0, 0.6, 0.0)", 20, y);
+  y += lineHeight;
+
+  ctx.fillText("ID1 = (0.8, 0.6, 0.0)", 20, y);
 }
 
 async function startCamera() {
