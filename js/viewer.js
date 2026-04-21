@@ -19,6 +19,10 @@ let camera;
 let renderer;
 let controls;
 let phoneGroup;
+let phoneTarget = { x: 0.4, y: BOARD.id2Height + 0.3, z: 1.2 };
+
+// Marker optisch mittiger an die Wand
+const WALL_OFFSET_X = 0.8;
 
 initScene();
 drawStaticBoard();
@@ -69,10 +73,7 @@ function connectViewerSocket() {
   socket.onmessage = (event) => {
     try {
       const msg = JSON.parse(event.data);
-      console.log("Viewer Nachricht:", msg);
-
       if (msg.type !== "tracking" || !msg.data) return;
-
       applyData(msg.data);
     } catch (error) {
       console.error("Viewer Parse-Fehler:", error);
@@ -108,7 +109,7 @@ function initScene() {
   sceneContainer.appendChild(renderer.domElement);
 
   controls = new OrbitControls(camera, renderer.domElement);
-  controls.target.set(0.8, 1.1, 1.2);
+  controls.target.set(1.4, 1.25, 1.2);
   controls.enableDamping = true;
   controls.dampingFactor = 0.08;
   controls.maxPolarAngle = Math.PI / 2.02;
@@ -129,7 +130,7 @@ function initScene() {
 }
 
 function addRoom() {
-  const roomWidth = 3.2;
+  const roomWidth = 4.2;
   const roomHeight = 2.8;
   const roomDepth = 4.5;
 
@@ -145,7 +146,7 @@ function addRoom() {
 }
 
 function addFloor() {
-  const floorGeometry = new THREE.PlaneGeometry(3.2, 4.5);
+  const floorGeometry = new THREE.PlaneGeometry(4.2, 4.5);
   const floorMaterial = new THREE.MeshStandardMaterial({
     color: 0x7a5b20,
     side: THREE.DoubleSide
@@ -153,20 +154,20 @@ function addFloor() {
 
   const floor = new THREE.Mesh(floorGeometry, floorMaterial);
   floor.rotation.x = -Math.PI / 2;
-  floor.position.set(1.6, 0, 2.25);
+  floor.position.set(2.1, 0, 2.25);
 
   scene.add(floor);
 }
 
 function addWall() {
-  const wallGeometry = new THREE.PlaneGeometry(3.2, 2.8);
+  const wallGeometry = new THREE.PlaneGeometry(4.2, 2.8);
   const wallMaterial = new THREE.MeshStandardMaterial({
     color: 0xd0d0d0,
     side: THREE.DoubleSide
   });
 
   const wall = new THREE.Mesh(wallGeometry, wallMaterial);
-  wall.position.set(1.6, 1.4, 0);
+  wall.position.set(2.1, 1.4, 0);
 
   scene.add(wall);
 }
@@ -174,7 +175,7 @@ function addWall() {
 function drawStaticBoard() {
   Object.entries(MARKER_CENTERS).forEach(([id, pos]) => {
     const marker = createMarkerMesh(`ID ${id}`);
-    marker.position.set(pos.x, BOARD.id2Height + pos.y, 0.01);
+    marker.position.set(WALL_OFFSET_X + pos.x, BOARD.id2Height + pos.y, 0.01);
     scene.add(marker);
   });
 }
@@ -216,7 +217,7 @@ function createMarkerMesh(label) {
 
 function addOriginAxes() {
   const axesHelper = new THREE.AxesHelper(0.5);
-  axesHelper.position.set(0, BOARD.id2Height, 0.08);
+  axesHelper.position.set(WALL_OFFSET_X, BOARD.id2Height, 0.08);
   scene.add(axesHelper);
 }
 
@@ -240,8 +241,7 @@ function addPhoneObject() {
   phoneGroup.add(arrow);
 
   scene.add(phoneGroup);
-
-  phoneGroup.position.set(0.4, BOARD.id2Height + 0.3, 1.2);
+  phoneGroup.position.set(WALL_OFFSET_X + 0.4, BOARD.id2Height + 0.3, 1.2);
 }
 
 function applyData(data) {
@@ -250,23 +250,29 @@ function applyData(data) {
   yEl.textContent = data.localY !== null ? Number(data.localY).toFixed(2) : "-";
   zEl.textContent = data.localZ !== null ? Number(data.localZ).toFixed(2) : "-";
 
-  statusEl.textContent = `Status: Live Tracking – Ref ${data.referenceId ?? "-"}`;
+  statusEl.textContent = `Status: Live Tracking – Ref ${data.referenceId ?? "-"} – Marker ${data.markerCount ?? "-"}`;
 
   if (
     data.localX !== null &&
     data.localY !== null &&
     data.localZ !== null
   ) {
-    phoneGroup.position.set(
-      Number(data.localX),
-      BOARD.id2Height + Number(data.localY),
-      Number(data.localZ)
-    );
+    phoneTarget = {
+      x: WALL_OFFSET_X + Number(data.localX),
+      y: BOARD.id2Height + Number(data.localY),
+      z: Number(data.localZ)
+    };
   }
 }
 
 function animate() {
   requestAnimationFrame(animate);
+
+  // sanfte Bewegung statt Teleport
+  phoneGroup.position.x += (phoneTarget.x - phoneGroup.position.x) * 0.15;
+  phoneGroup.position.y += (phoneTarget.y - phoneGroup.position.y) * 0.15;
+  phoneGroup.position.z += (phoneTarget.z - phoneGroup.position.z) * 0.15;
+
   controls.update();
   renderer.render(scene, camera);
 }

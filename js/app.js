@@ -11,7 +11,8 @@ import { BOARD } from "./board-config.js";
 import {
   estimateDistanceFromMarker,
   calculateNormalizedMarkerOffset,
-  estimateLocalBoardPosition
+  estimateLocalBoardPosition,
+  estimateMultiMarkerBoardPosition
 } from "./positioning.js";
 import { connectSocket, disconnectSocket, sendData, setSocketStateCallback } from "./websocket.js";
 
@@ -26,7 +27,12 @@ const ctx = canvas.getContext("2d");
 let stream = null;
 let rafId = null;
 
+// Smoothing für die lokale Position
+let smoothedLocalPosition = null;
+const POSITION_SMOOTHING = 0.75;
+
 const boardSummary = getBoardSummary();
+const FOCAL_LENGTH_PX = 900;
 
 setSocketStateCallback((text) => {
   if (wsStatusEl) {
@@ -34,12 +40,30 @@ setSocketStateCallback((text) => {
   }
 });
 
-const FOCAL_LENGTH_PX = 900;
-
 function resizeCanvasToVideo() {
   if (!video.videoWidth || !video.videoHeight) return;
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;
+}
+
+function smoothPosition(position) {
+  if (!position) {
+    smoothedLocalPosition = null;
+    return null;
+  }
+
+  if (!smoothedLocalPosition) {
+    smoothedLocalPosition = { ...position };
+    return position;
+  }
+
+  smoothedLocalPosition = {
+    x: POSITION_SMOOTHING * smoothedLocalPosition.x + (1 - POSITION_SMOOTHING) * position.x,
+    y: POSITION_SMOOTHING * smoothedLocalPosition.y + (1 - POSITION_SMOOTHING) * position.y,
+    z: POSITION_SMOOTHING * smoothedLocalPosition.z + (1 - POSITION_SMOOTHING) * position.z
+  };
+
+  return smoothedLocalPosition;
 }
 
 function render() {
@@ -55,13 +79,30 @@ function render() {
 
     let distance = null;
     let offset = null;
+    let localPositionSingle = null;
+    let localPositionMulti = null;
     let localPosition = null;
 
     if (referenceMarker) {
       distance = estimateDistanceFromMarker(referenceMarker, BOARD.markerSize, FOCAL_LENGTH_PX);
       offset = calculateNormalizedMarkerOffset(referenceMarker, canvas);
-      localPosition = estimateLocalBoardPosition(referenceMarker, offset, distance);
+      localPositionSingle = estimateLocalBoardPosition(referenceMarker, offset, distance);
+    }
 
+    if (markers.length >= 2) {
+      localPositionMulti = estimateMultiMarkerBoardPosition(
+        markers,
+        canvas,
+        BOARD.markerSize,
+        FOCAL_LENGTH_PX
+      );
+    }
+
+    // Mehrmarker bevorzugen, sonst Einzelmarker
+    localPosition = localPositionMulti || localPositionSingle;
+    localPosition = smoothPosition(localPosition);
+
+    if (referenceMarker && localPosition) {
       sendData({
         type: "tracking",
         data: {
@@ -74,6 +115,7 @@ function render() {
           localX: localPosition?.x ?? null,
           localY: localPosition?.y ?? null,
           localZ: localPosition?.z ?? null,
+          markerCount: markers.length,
           ts: Date.now()
         }
       });
@@ -95,7 +137,7 @@ function render() {
     });
 
     if (referenceMarker) {
-      statusEl.textContent = `Status: Marker erkannt – Referenz ${referenceMarker.id}`;
+      statusEl.textContent = `Status: Marker erkannt – Referenz ${referenceMarker.id} – Marker ${markers.length}`;
     } else {
       statusEl.textContent = "Status: Kamera läuft – kein Marker erkannt";
     }
@@ -122,18 +164,6 @@ async function startCamera() {
 
     connectSocket();
 
-    connectSocket({
-      onOpen: () => {
-        wsStatusEl.textContent = "verbunden";
-      },
-      onClose: () => {
-        wsStatusEl.textContent = "nicht verbunden";
-      },
-      onError: () => {
-        wsStatusEl.textContent = "fehler";
-      }
-    });
-
     initDetector(canvas.width || 640, BOARD.markerSize);
 
     statusEl.textContent = "Status: Kamera läuft";
@@ -156,6 +186,7 @@ function stopCamera() {
   }
 
   disconnectSocket();
+  smoothedLocalPosition = null;
   wsStatusEl.textContent = "nicht verbunden";
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
