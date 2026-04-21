@@ -45,8 +45,22 @@ canvas,
   min-height: 420px;
   border: 1px solid #ccc;
   border-radius: 12px;
-  background: black;
   display: block;
+}
+
+canvas {
+  background: black;
+}
+
+.viewer-scene {
+  background: #eef2f5;
+}
+
+.viewer-scene-3d {
+  height: 72vh;
+  min-height: 520px;
+  max-height: 820px;
+  overflow: hidden;
 }
 
 .viewer-scene {
